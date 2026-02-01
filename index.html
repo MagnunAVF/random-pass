@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Random Password Generator</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    ></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+      .main-card {
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      }
+      .password-display {
+        font-family: "Courier New", monospace;
+        font-size: 1.1rem;
+        letter-spacing: 1px;
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+      }
+      .generate-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        font-weight: 600;
+        transition: transform 0.2s;
+      }
+      .generate-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+      .copy-btn {
+        transition: all 0.2s;
+      }
+      .copy-btn:hover {
+        transform: scale(1.1);
+      }
+      .history-item {
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+      .history-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+      }
+      .auth-badge {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+      }
+      .loading-spinner {
+        display: inline-block;
+        width: 1rem;
+        height: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      function App() {
+        const [password, setPassword] = useState("");
+        const [history, setHistory] = useState([]);
+        const [isAuthenticated, setIsAuthenticated] = useState(false);
+        const [loading, setLoading] = useState(false);
+        const [copied, setCopied] = useState(false);
+        const [error, setError] = useState("");
+
+        useEffect(() => {
+          login();
+        }, []);
+
+        const login = async () => {
+          try {
+            const res = await fetch("/api/login", { method: "POST" });
+            if (res.ok) {
+              setIsAuthenticated(true);
+              fetchHistory();
+            }
+          } catch (err) {
+            setError("Failed to authenticate");
+          }
+        };
+
+        const fetchHistory = async () => {
+          try {
+            const res = await fetch("/api/history");
+            const data = await res.json();
+            setHistory(data.history || []);
+            setError("");
+          } catch (err) {
+            setError("Failed to load history");
+          }
+        };
+
+        const generatePassword = async () => {
+          setLoading(true);
+          setError("");
+          try {
+            const res = await fetch("/api/generate", { method: "POST" });
+            const data = await res.json();
+
+            if (res.ok) {
+              setPassword(data.password);
+              fetchHistory();
+            } else {
+              setError(data.error || "Failed to generate password");
+            }
+          } catch (err) {
+            setError("Network error. Please try again.");
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        const copyToClipboard = async (text) => {
+          try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch (err) {
+            setError("Failed to copy to clipboard");
+          }
+        };
+
+        const logout = async () => {
+          try {
+            await fetch("/api/logout", { method: "POST" });
+            setIsAuthenticated(false);
+            setPassword("");
+            setHistory([]);
+          } catch (err) {
+            setError("Failed to logout");
+          }
+        };
+
+        return (
+          <div className="container py-5">
+            <div className="row justify-content-center">
+              <div className="col-12 col-md-8 col-lg-6">
+                <div className="card main-card p-4 position-relative">
+                  {isAuthenticated && (
+                    <span className="auth-badge badge bg-success">
+                      <i className="bi bi-shield-check"></i> Authenticated
+                    </span>
+                  )}
+
+                  <div className="text-center mb-4">
+                    <h1 className="display-5 fw-bold text-primary mb-2">
+                      <i className="bi bi-key-fill"></i> Random Pass
+                    </h1>
+                    <p className="text-muted">Random Password Generator</p>
+                  </div>
+
+                  {error && (
+                    <div
+                      className="alert alert-danger alert-dismissible fade show"
+                      role="alert"
+                    >
+                      <i className="bi bi-exclamation-triangle-fill"></i>{" "}
+                      {error}
+                      <button
+                        type="button"
+                        className="btn-close"
+                        onClick={() => setError("")}
+                      ></button>
+                    </div>
+                  )}
+
+                  <div className="mb-4">
+                    <label className="form-label fw-semibold">
+                      <i className="bi bi-lock-fill"></i> Generated Password
+                    </label>
+                    <div className="input-group">
+                      <input
+                        type="text"
+                        className="form-control password-display"
+                        value={password}
+                        readOnly
+                        placeholder="Click generate to create a password..."
+                      />
+                      {password && (
+                        <button
+                          className="btn btn-outline-secondary copy-btn"
+                          onClick={() => copyToClipboard(password)}
+                          title="Copy to clipboard"
+                        >
+                          <i
+                            className={`bi ${copied ? "bi-check-lg text-success" : "bi-clipboard"}`}
+                          ></i>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn btn-primary btn-lg w-100 generate-btn mb-4"
+                    onClick={generatePassword}
+                    disabled={loading || !isAuthenticated}
+                  >
+                    {loading ? (
+                      <>
+                        <span
+                          className="spinner-border loading-spinner me-2"
+                          role="status"
+                        ></span>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-arrow-repeat"></i> Generate Password
+                      </>
+                    )}
+                  </button>
+
+                  <hr className="my-4" />
+
+                  <div>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h5 className="mb-0">
+                        <i className="bi bi-clock-history"></i> Recent Passwords
+                      </h5>
+                      <span className="badge bg-secondary">
+                        {history.length}
+                      </span>
+                    </div>
+
+                    {history.length === 0 ? (
+                      <div className="text-center text-muted py-4">
+                        <i
+                          className="bi bi-inbox"
+                          style={{ fontSize: "2rem" }}
+                        ></i>
+                        <p className="mt-2 mb-0">No passwords generated yet</p>
+                      </div>
+                    ) : (
+                      <ul className="list-group list-group-flush">
+                        {history.map((pwd, index) => (
+                          <li
+                            key={index}
+                            className="list-group-item history-item d-flex justify-content-between align-items-center"
+                            onClick={() => copyToClipboard(pwd)}
+                          >
+                            <span className="font-monospace small text-truncate me-2">
+                              {pwd}
+                            </span>
+                            <i className="bi bi-clipboard text-muted"></i>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="mt-4 text-center">
+                    <button
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={logout}
+                    >
+                      <i className="bi bi-box-arrow-right"></i> Logout
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-center mt-4 text-white">
+                  <small>
+                    <i className="bi bi-shield-lock-fill"></i> Your passwords
+                    are securely stored
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      ReactDOM.render(<App />, document.getElementById("root"));
+    </script>
+  </body>
+</html>
