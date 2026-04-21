@@ -1,4 +1,4 @@
-.PHONY: help build run test test-verbose test-coverage lint fmt vet clean docker-up docker-down install-tools
+.PHONY: help build run test test-verbose test-coverage lint fmt vet clean docker-up docker-down install-tools docker-test-up docker-test-down test-integration
 
 BINARY_NAME=random-pass
 BIN_DIR=bin
@@ -21,8 +21,11 @@ help:
 	@echo "  make fmt            - Format code with gofmt"
 	@echo "  make vet            - Run go vet"
 	@echo "  make clean          - Remove build artifacts"
-	@echo "  make docker-up      - Start docker services (Redis)"
-	@echo "  make docker-down    - Stop docker services"
+	@echo "  make docker-up      - Start docker services (dev profile)"
+	@echo "  make docker-down    - Stop docker services (dev profile)"
+	@echo "  make docker-test-up   - Start docker services (test profile)"
+	@echo "  make docker-test-down - Stop docker services (test profile)"
+	@echo "  make test-integration - Start test profile and run tests"
 	@echo "  make install-tools  - Install development tools"
 	@echo "  make all            - Run fmt, vet, lint, test, and build"
 
@@ -80,13 +83,27 @@ clean:
 
 docker-up:
 	@echo "Starting Docker services..."
-	docker-compose up -d
+	docker-compose --profile dev up -d
 	@echo "Docker services started"
+
+docker-test-up:
+	@echo "Starting Docker test services (Redis)..."
+	docker-compose --profile test up -d
+	@echo "Docker test services started"
 
 docker-down:
 	@echo "Stopping Docker services..."
-	docker-compose down
+	docker-compose --profile dev down
 	@echo "Docker services stopped"
+
+docker-test-down:
+	@echo "Stopping Docker test services..."
+	docker-compose --profile test down
+	@echo "Docker test services stopped"
+
+test-integration: docker-test-up
+	@echo "Running integration tests..."
+	$(GOTEST) ./...
 
 install-tools:
 	@echo "Installing development tools..."
