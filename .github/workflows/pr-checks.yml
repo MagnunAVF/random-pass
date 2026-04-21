@@ -61,7 +61,7 @@ jobs:
         run: go mod download
 
       - name: Start Redis
-        run: docker-compose --profile test up -d
+        run: docker compose --profile test up -d
 
       - name: Wait for Redis
         run: |
@@ -79,4 +79,4 @@ jobs:
 
       - name: Stop Redis
         if: always()
-        run: docker-compose --profile test down
+        run: docker compose --profile test down
