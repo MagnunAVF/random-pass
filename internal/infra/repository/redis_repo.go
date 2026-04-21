@@ -24,8 +24,12 @@ func generateKey(userID string) string {
 
 func (r *RedisRepo) Save(userID string, password string) error {
 	key := generateKey(userID)
-	r.client.LPush(r.ctx, key, password)
-	r.client.LTrim(r.ctx, key, 0, 4)
+	if err := r.client.LPush(r.ctx, key, password).Err(); err != nil {
+		return err
+	}
+	if err := r.client.LTrim(r.ctx, key, 0, 4).Err(); err != nil {
+		return err
+	}
 
 	return nil
 }
