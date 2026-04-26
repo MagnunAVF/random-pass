@@ -26,8 +26,14 @@ help:
 	@echo "  make docker-test-up   - Start docker services (test profile)"
 	@echo "  make docker-test-down - Stop docker services (test profile)"
 	@echo "  make test-integration - Start test profile and run tests"
+	@echo "  make db-shell       - Open psql shell (requires docker-up)"
 	@echo "  make install-tools  - Install development tools"
 	@echo "  make all            - Run fmt, vet, lint, test, and build"
+	@echo ""
+	@echo "Env vars (with defaults):"
+	@echo "  POSTGRES_DSN  postgres://postgres:postgres@localhost:5432/randompass?sslmode=disable"
+	@echo "  REDIS_ADDR    localhost:6379"
+	@echo "  PORT          3000"
 
 build:
 	@echo "Building $(BINARY_NAME)..."
@@ -83,27 +89,30 @@ clean:
 
 docker-up:
 	@echo "Starting Docker services..."
-	docker-compose --profile dev up -d
+	docker compose --profile dev up -d
 	@echo "Docker services started"
 
 docker-test-up:
 	@echo "Starting Docker test services (Redis)..."
-	docker-compose --profile test up -d
+	docker compose --profile test up -d
 	@echo "Docker test services started"
 
 docker-down:
 	@echo "Stopping Docker services..."
-	docker-compose --profile dev down
+	docker compose --profile dev down
 	@echo "Docker services stopped"
 
 docker-test-down:
 	@echo "Stopping Docker test services..."
-	docker-compose --profile test down
+	docker compose --profile test down
 	@echo "Docker test services stopped"
 
 test-integration: docker-test-up
 	@echo "Running integration tests..."
 	$(GOTEST) ./...
+
+db-shell:
+	docker exec -it random-pass-postgres psql -U postgres -d randompass
 
 install-tools:
 	@echo "Installing development tools..."
