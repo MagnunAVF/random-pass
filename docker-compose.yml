@@ -14,5 +14,22 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: random-pass-postgres
+    profiles:
+      - dev
+      - test
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: randompass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
 volumes:
   redis_data:
+  postgres_data:
