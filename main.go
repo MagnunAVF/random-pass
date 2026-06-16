@@ -5,9 +5,9 @@ import (
 	"embed"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/MagnunAVF/random-pass/internal/handler"
@@ -41,14 +41,13 @@ func main() {
 
 	passwordSvc := service.NewPasswordService(passwordRepo)
 	authSvc := service.NewAuthService(userRepo)
+	jwtSvc := service.NewJWTService(getEnv("JWT_SECRET", "change-me-in-production"))
 
-	authHandler := handler.NewAuthHandler(authSvc)
+	authHandler := handler.NewAuthHandler(authSvc, jwtSvc)
 
 	app := fiber.New(fiber.Config{
 		AppName: "Random Pass v1",
 	})
-
-	app.Use(session.New())
 
 	app.Get("/", func(c fiber.Ctx) error {
 		c.Set("Content-Type", "text/html")
@@ -59,17 +58,14 @@ func main() {
 
 	api.Post("/signup", authHandler.Signup)
 	api.Post("/login", authHandler.Login)
-	api.Post("/logout", authHandler.Logout)
 
-	api.Post("/generate", func(c fiber.Ctx) error {
-		sess := session.FromContext(c)
-		userID := sess.Get("user_id")
+	// JWT-protected routes
+	protected := api.Group("", jwtMiddleware(jwtSvc))
 
-		if userID == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Please login first"})
-		}
+	protected.Post("/generate", func(c fiber.Ctx) error {
+		userID := c.Locals(handler.UserIDLocal).(string)
 
-		pwd, err := passwordSvc.GenerateAndSave(userID.(string))
+		pwd, err := passwordSvc.GenerateAndSave(userID)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Generation failed"})
 		}
@@ -77,15 +73,10 @@ func main() {
 		return c.JSON(fiber.Map{"password": pwd})
 	})
 
-	api.Get("/history", func(c fiber.Ctx) error {
-		sess := session.FromContext(c)
-		userID := sess.Get("user_id")
+	protected.Get("/history", func(c fiber.Ctx) error {
+		userID := c.Locals(handler.UserIDLocal).(string)
 
-		if userID == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-		}
-
-		history, err := passwordRepo.GetLastFive(userID.(string))
+		history, err := passwordRepo.GetLastFive(userID)
 		if err != nil {
 			return c.JSON(fiber.Map{"history": []string{}})
 		}
@@ -94,6 +85,23 @@ func main() {
 	})
 
 	log.Fatal(app.Listen(":3000"))
+}
+
+func jwtMiddleware(jwtSvc service.JWTServicer) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		authHeader := c.Get("Authorization")
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "missing or invalid authorization header"})
+		}
+
+		claims, err := jwtSvc.Validate(strings.TrimPrefix(authHeader, "Bearer "))
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid or expired token"})
+		}
+
+		c.Locals(handler.UserIDLocal, claims.UserID)
+		return c.Next()
+	}
 }
 
 func getEnv(key, fallback string) string {

@@ -4,20 +4,20 @@ import (
 	"errors"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/session"
 
 	"github.com/MagnunAVF/random-pass/internal/domain"
 	"github.com/MagnunAVF/random-pass/internal/service"
 )
 
-const sessionUserIDKey = "user_id"
+const UserIDLocal = "user_id"
 
 type AuthHandler struct {
 	authSvc service.AuthServicer
+	jwtSvc  service.JWTServicer
 }
 
-func NewAuthHandler(authSvc service.AuthServicer) *AuthHandler {
-	return &AuthHandler{authSvc: authSvc}
+func NewAuthHandler(authSvc service.AuthServicer, jwtSvc service.JWTServicer) *AuthHandler {
+	return &AuthHandler{authSvc: authSvc, jwtSvc: jwtSvc}
 }
 
 type signupRequest struct {
@@ -49,10 +49,13 @@ func (h *AuthHandler) Signup(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	sess := session.FromContext(c)
-	sess.Set(sessionUserIDKey, user.ID.String())
+	token, err := h.jwtSvc.Generate(user.ID.String())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not generate token"})
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"token":      token,
 		"id":         user.ID,
 		"username":   user.Username,
 		"email":      user.Email,
@@ -74,20 +77,15 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "login failed"})
 	}
 
-	sess := session.FromContext(c)
-	sess.Set(sessionUserIDKey, user.ID.String())
+	token, err := h.jwtSvc.Generate(user.ID.String())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "could not generate token"})
+	}
 
 	return c.JSON(fiber.Map{
+		"token":    token,
 		"id":       user.ID,
 		"username": user.Username,
 		"email":    user.Email,
 	})
-}
-
-func (h *AuthHandler) Logout(c fiber.Ctx) error {
-	sess := session.FromContext(c)
-	if err := sess.Destroy(); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "logout failed"})
-	}
-	return c.JSON(fiber.Map{"status": "logged_out"})
 }
