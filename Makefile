@@ -1,4 +1,4 @@
-.PHONY: help build run test test-verbose test-coverage lint fmt vet clean docker-up docker-down install-tools docker-test-up docker-test-down test-integration
+.PHONY: help build run test test-verbose test-coverage lint fmt vet clean docker-up docker-down install-tools docker-test-up docker-test-down test-integration docker-build docker-prod-up docker-prod-down
 
 BINARY_NAME=random-pass
 BIN_DIR=bin
@@ -21,11 +21,14 @@ help:
 	@echo "  make fmt            - Format code with gofmt"
 	@echo "  make vet            - Run go vet"
 	@echo "  make clean          - Remove build artifacts"
-	@echo "  make docker-up      - Start docker services (dev profile)"
-	@echo "  make docker-down    - Stop docker services (dev profile)"
+	@echo "  make docker-up        - Start docker services (dev profile)"
+	@echo "  make docker-down      - Stop docker services (dev profile)"
 	@echo "  make docker-test-up   - Start docker services (test profile)"
 	@echo "  make docker-test-down - Stop docker services (test profile)"
 	@echo "  make test-integration - Start test profile and run tests"
+	@echo "  make docker-build     - Build the production Docker image"
+	@echo "  make docker-prod-up   - Build and start all services (prod profile)"
+	@echo "  make docker-prod-down - Stop all services (prod profile)"
 	@echo "  make db-shell       - Open psql shell (requires docker-up)"
 	@echo "  make install-tools  - Install development tools"
 	@echo "  make all            - Run fmt, vet, lint, test, and build"
@@ -34,6 +37,7 @@ help:
 	@echo "  POSTGRES_DSN  postgres://postgres:postgres@localhost:5432/randompass?sslmode=disable"
 	@echo "  REDIS_ADDR    localhost:6379"
 	@echo "  PORT          3000"
+	@echo "  JWT_SECRET    change-me-in-production"
 
 build:
 	@echo "Building $(BINARY_NAME)..."
@@ -111,8 +115,23 @@ test-integration: docker-test-up
 	@echo "Running integration tests..."
 	$(GOTEST) ./...
 
+docker-build:
+	@echo "Building production Docker image..."
+	docker build -t $(BINARY_NAME):latest .
+	@echo "Image built: $(BINARY_NAME):latest"
+
+docker-prod-up:
+	@echo "Starting production services..."
+	docker compose --profile prod up -d --build
+	@echo "Production services started on http://localhost:3000"
+
+docker-prod-down:
+	@echo "Stopping production services..."
+	docker compose --profile prod down
+	@echo "Production services stopped"
+
 db-shell:
-	docker exec -it random-pass-postgres psql -U postgres -d randompass
+	docker exec -it $(BINARY_NAME)-postgres psql -U postgres -d randompass
 
 install-tools:
 	@echo "Installing development tools..."
