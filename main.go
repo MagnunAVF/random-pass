@@ -5,6 +5,7 @@ import (
 	"embed"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -49,11 +50,6 @@ func main() {
 		AppName: "Random Pass v1",
 	})
 
-	app.Get("/", func(c fiber.Ctx) error {
-		c.Set("Content-Type", "text/html")
-		return c.SendFile("./index.html")
-	})
-
 	api := app.Group("/api")
 
 	api.Post("/signup", authHandler.Signup)
@@ -82,6 +78,15 @@ func main() {
 		}
 
 		return c.JSON(fiber.Map{"history": history})
+	})
+
+	// Serve React app: static files first, then SPA fallback for unknown paths
+	app.Get("/*", func(c fiber.Ctx) error {
+		fp := filepath.Join("./client/dist", filepath.Clean("/"+c.Path()))
+		if info, err := os.Stat(fp); err == nil && !info.IsDir() {
+			return c.SendFile(fp)
+		}
+		return c.SendFile("./client/dist/index.html")
 	})
 
 	log.Fatal(app.Listen(":3000"))
