@@ -27,4 +27,6 @@ COPY --from=client-builder /build/dist ./client/dist
 
 EXPOSE 3000
 
+USER nonroot:nonroot
+
 ENTRYPOINT ["/app/random-pass"]
