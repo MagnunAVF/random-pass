@@ -1,0 +1,19 @@
+.git
+.gitignore
+
+# Build artifacts
+bin/
+cov/
+client/dist/
+
+# Node modules (rebuilt in Docker)
+client/node_modules/
+node_modules/
+
+# Dev/docs files
+*.md
+.DS_Store
+
+# Test/coverage artifacts
+*.out
+*.html
