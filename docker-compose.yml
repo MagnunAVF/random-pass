@@ -7,6 +7,7 @@ services:
     profiles:
       - dev
       - test
+      - prod
     ports:
       - "6379:6379"
     volumes:
@@ -20,6 +21,7 @@ services:
     profiles:
       - dev
       - test
+      - prod
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -28,6 +30,22 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: random-pass-app
+    profiles:
+      - prod
+    ports:
+      - "3000:3000"
+    environment:
+      POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/randompass?sslmode=disable
+      REDIS_ADDR: redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    depends_on:
+      - postgres
+      - redis
     restart: unless-stopped
 
 volumes:
