@@ -8,6 +8,10 @@
 *.so
 *.dylib
 
+# Build output directories
+bin/
+cov/
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -30,3 +34,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Mac files
+.DS_Store
